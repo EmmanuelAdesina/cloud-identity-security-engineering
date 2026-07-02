@@ -6,31 +6,11 @@
 
 <br/>
 
-[
-
-![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)
-
-](go.mod)
-[
-
-![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
-
-](LICENSE)
-[
-
-![CI](https://img.shields.io/github/actions/workflow/status/[handle]/cloud-identity-security-engineering/test.yml?branch=main&style=flat-square&label=CI&logo=github)
-
-](/.github/workflows/test.yml)
-[
-
-![Go Report Card](https://goreportcard.com/badge/github.com/[handle]/cloud-identity-security-engineering?style=flat-square)
-
-](https://goreportcard.com/report/github.com/[handle]/cloud-identity-security-engineering)
-[
-
-![Series](https://img.shields.io/badge/Hashnode-Series-2962FF?style=flat-square&logo=hashnode&logoColor=white)
-
-](https://hashnode.com/@[handle]/series/cloud-identity-security-engineering)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](go.mod)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/EmmanuelAdesina/cloud-identity-security-engineering/test.yml?branch=main&style=flat-square&label=CI&logo=github)](/.github/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/EmmanuelAdesina/cloud-identity-security-engineering?style=flat-square)](https://goreportcard.com/report/github.com/EmmanuelAdesina/cloud-identity-security-engineering)
+[![Series](https://img.shields.io/badge/Hashnode-Series-2962FF?style=flat-square&logo=hashnode&logoColor=white)](https://hashnode.com/@EmmanuelAdesina/series/cloud-identity-security-engineering)
 
 <br/>
 
@@ -83,11 +63,11 @@ Standard IAM auditing tools evaluate policies in isolation — they answer *"wha
 ```mermaid
 graph LR
     subgraph Entry["Entry Point"]
-        A["Developer User\niam:PassRole ✓\nsts:AssumeRole ✓"]
+        A["Developer User\niam:PassRole\nsts:AssumeRole"]
     end
 
     subgraph Chain["Assumption Chain"]
-        B["Pipeline Role\nec2:RunInstances ✓\niam:PassRole ✓"]
+        B["Pipeline Role\nec2:RunInstances\niam:PassRole"]
         C["EC2 Instance Profile\nMetadata Service Accessible"]
     end
 
@@ -97,8 +77,8 @@ graph LR
     end
 
     A -->|"sts:AssumeRole"| B
-    B -->|"iam:PassRole → EC2"| C
-    C -->|"sts:AssumeRole\nvia instance metadata"| D
+    B -->|"iam:PassRole to EC2"| C
+    C -->|"sts:AssumeRole via metadata"| D
     D -->|"sts:AssumeRole"| E
 
     style A fill:#1e3a5f,color:#ecf0f1,stroke:#2471a3
@@ -120,9 +100,9 @@ Privilege escalation is modeled as a reachability problem on the authorization g
 
 | Pattern | Mechanism | Typical Blast Radius |
 |---------|-----------|---------------------|
-| `iam:PassRole` to compute | Assign a high-privilege role to an EC2/Lambda resource you control | Principal → Admin |
-| Policy attachment | `iam:AttachRolePolicy` — attach AWS-managed admin policy to existing role | Any role → Admin |
-| Trust policy modification | `iam:UpdateAssumeRolePolicy` — add self to trust policy of privileged role | Current identity → Target role |
+| `iam:PassRole` to compute | Assign a high-privilege role to an EC2/Lambda resource you control | Principal to Admin |
+| Policy attachment | `iam:AttachRolePolicy` — attach AWS-managed admin policy to existing role | Any role to Admin |
+| Trust policy modification | `iam:UpdateAssumeRolePolicy` — add self to trust policy of privileged role | Current identity to target role |
 | Role chain depth | Multi-hop `sts:AssumeRole` to reach roles beyond direct assumption | Depends on chain depth |
 | Wildcard trust principal | `"Principal": "*"` or unconstrained `aws:PrincipalOrgID` condition | Org-wide or public |
 
@@ -135,12 +115,14 @@ flowchart TD
     C --> E["Enumerate PassRole Permissions"]
     C --> F["Evaluate Trust Policy Conditions"]
 
-    D & E & F --> G["Graph Traversal\nfind escalation paths"]
+    D --> G["Graph Traversal\nfind escalation paths"]
+    E --> G
+    F --> G
 
-    G --> H{"Reachable\nElevated Role?"}
+    G --> H{"Reachable Elevated Role?"}
 
-    H -- Yes --> I["Score Path\nblast radius + hop count"]
-    H -- No  --> J["No Finding"]
+    H -->|Yes| I["Score Path\nblast radius + hop count"]
+    H -->|No| J["No Finding"]
 
     I --> K(["Security Finding\nJSON output"])
 
@@ -159,16 +141,16 @@ The project is organized around a dependency-free domain model (`internal/model`
 ```mermaid
 graph TD
     subgraph CLI["cmd/"]
-        pp["policyparser\nParse + validate policy documents"]
+        pp["policyparser\nParse and validate policy documents"]
         sc["iamscan\nScan config against detection rules"]
         ap["attackpath\nBuild graph, enumerate escalation paths"]
     end
 
     subgraph Core["internal/"]
-        model["model\nIdentity · Permission · Event\nCore domain types — no external deps"]
+        model["model\nIdentity, Permission, Event\nCore domain types"]
         parser["parser\nAWS policy parser\nTrust policy parser"]
         iam["iam\nPolicy evaluation\nAction namespace resolution"]
-        graph["graph\nIdentity graph\nTraversal  ≤ 300 LOC hard cap"]
+        gph["graph\nIdentity graph\nTraversal 300 LOC hard cap"]
         attack["attack\nEscalation path rules\nBlast radius scoring"]
         detection["detection\nCloudTrail signal parser\nDetection rule engine"]
     end
@@ -178,14 +160,14 @@ graph TD
     ap --> attack
 
     parser --> model
-    iam    --> model
-    model  --> graph
-    graph  --> attack
+    iam --> model
+    model --> gph
+    gph --> attack
     attack --> detection
 
-    style model     fill:#1a252f,color:#ecf0f1,stroke:#2c3e50
-    style graph     fill:#1e3a5f,color:#ecf0f1,stroke:#2471a3
-    style attack    fill:#922b21,color:#fff,stroke:#7b241c
+    style model fill:#1a252f,color:#ecf0f1,stroke:#2c3e50
+    style gph fill:#1e3a5f,color:#ecf0f1,stroke:#2471a3
+    style attack fill:#922b21,color:#fff,stroke:#7b241c
     style detection fill:#154360,color:#ecf0f1,stroke:#1a5276
 ```
 
@@ -199,20 +181,25 @@ Detection is grounded in CloudTrail — the authoritative record of IAM control 
 
 ```mermaid
 flowchart LR
-    A([CloudTrail\nEvent Stream]) --> B{Signal\nParser}
+    A([CloudTrail Event Stream]) --> B{Signal Parser}
 
     B --> C["sts:AssumeRole\nChain Depth Anomaly"]
     B --> D["iam:PassRole\nto Compute Resource"]
     B --> E["Policy Attachment\nto Existing Role"]
     B --> F["Trust Policy\nModification"]
 
-    C & D & E & F --> G([Risk Scoring\nEngine])
+    C --> G([Risk Scoring Engine])
+    D --> G
+    E --> G
+    F --> G
 
     G --> H["Severity\nClassification"]
     G --> I["Blast Radius\nEstimate"]
     G --> J["MITRE ATT&CK\nTechnique ID"]
 
-    H & I & J --> K([Security\nFinding])
+    H --> K([Security Finding])
+    I --> K
+    J --> K
 
     style A fill:#1a252f,color:#ecf0f1,stroke:#2c3e50
     style B fill:#1e3a5f,color:#ecf0f1,stroke:#2471a3
@@ -248,7 +235,7 @@ cloud-identity-security-engineering/
 │   │   ├── cloudtrail_signals.go # Event parsing and correlation
 │   │   └── detection_rules.go    # Detection rule definitions
 │   ├── graph/
-│   │   ├── identity_graph.go    # Graph construction  (hard cap: ≤300 LOC total)
+│   │   ├── identity_graph.go    # Graph construction (hard cap: 300 LOC total)
 │   │   └── traversal.go         # BFS/DFS traversal, path enumeration
 │   ├── iam/
 │   │   ├── actions.go           # IAM action namespace resolution
@@ -263,13 +250,13 @@ cloud-identity-security-engineering/
 │       └── trust_policy_parser.go # Trust policy parser with condition handling
 │
 ├── examples/
-│   ├── attack-scenarios/          # Documented exploitation scenarios (Markdown)
+│   ├── attack-scenarios/          # Documented exploitation scenarios
 │   ├── cloudtrail-logs/           # Sample CloudTrail events for detection testing
 │   ├── compliance-reports/        # ISO 27001 / SOC 2 mapping artifacts
 │   └── iam-policies/
-│       ├── overprivileged.json        # Intentionally vulnerable — research use only
-│       ├── passrole_escalation.json   # Intentionally vulnerable — research use only
-│       └── trust_policy_risk.json     # Intentionally vulnerable — research use only
+│       ├── overprivileged.json        # Intentionally vulnerable
+│       ├── passrole_escalation.json   # Intentionally vulnerable
+│       └── trust_policy_risk.json     # Intentionally vulnerable
 │
 ├── analysis/
 │   └── rr-001/                    # Research artifact: Parsing IAM Policies in Go
@@ -333,7 +320,7 @@ Each entry is a structured security engineering artifact: threat modeling, attac
 
 | Entry | Title | Status | Research Artifact |
 |-------|-------|--------|-------------------|
-| [#001](https://hashnode.com/@[handle]/cloud-identity-security-engineering) | Parsing IAM Policies in Go | 🔵 Published | [analysis/rr-001/](./analysis/rr-001/) |
+| [#001](https://hashnode.com/@EmmanuelAdesina/series/cloud-identity-security-engineering) | Parsing IAM Policies in Go | 🔵 Published | [analysis/rr-001/](./analysis/rr-001/) |
 | [#002](#) | Modeling AWS Role Assumption Paths | 🟡 In Progress | — |
 | [#003](#) | Detecting Privilege Escalation Opportunities | 🔴 Planned | — |
 | [#004](#) | SCP Bypass and Resource-Based Policy Abuse | 🔴 Planned | — |
@@ -363,7 +350,7 @@ Findings are mapped to [MITRE ATT&CK for Cloud](https://attack.mitre.org/matrice
 
 ```bash
 # Clone
-git clone https://github.com/[handle]/cloud-identity-security-engineering
+git clone https://github.com/EmmanuelAdesina/cloud-identity-security-engineering
 cd cloud-identity-security-engineering
 
 # Build
